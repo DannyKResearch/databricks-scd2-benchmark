@@ -1,0 +1,32 @@
+name: ci
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  unit:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -r requirements/dev-py312.lock && pip install --no-deps -e .
+      - run: ruff check src tests
+      - run: mypy
+      - run: pytest tests/unit -q
+  spark-integration:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - run: pip install -r requirements/dev-py312.lock && pip install --no-deps -e .
+      - run: pytest -m "spark and not slow" tests/integration -q
+  # tests/databricks are NOT run in CI (no workspace); they run via the dbxbench_live_tests bundle job.

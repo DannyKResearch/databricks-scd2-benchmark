@@ -1,0 +1,222 @@
+# CLASSIC job-cluster variant (DBR 18.0+). NOT included by default: databricks.yml includes
+# resources/*.yml only, which is the serverless variant. To use classic compute, change the include in
+# databricks.yml to resources/classic/*.yml (and do not include both: the job keys are the same).
+# Jobs:
+#  * dbxbench_worker     - ONE independent writer. The suite starts N concurrent runs of this job
+#                          (Jobs API run-now; max_concurrent_runs allows them to overlap), each on
+#                          its own job cluster => its own driver and Spark session.
+#  * dbxbench_suite      - doctor -> init -> generate -> performance -> faults -> contention -> verify -> analyze
+#  * dbxbench_live_tests - pytest -m databricks (tests/databricks) on DBR 18.0+
+resources:
+  jobs:
+    dbxbench_worker:
+      name: dbxbench-worker-${bundle.target}
+      max_concurrent_runs: 100
+      parameters:
+        - name: plan_path
+          default: ""
+        - name: writer_id
+          default: ""
+      job_clusters:
+        - job_cluster_key: writer
+          new_cluster:
+            spark_version: ${var.spark_version}
+            node_type_id: ${var.node_type_id}
+            num_workers: ${var.worker_num_workers}
+            data_security_mode: ${var.data_security_mode}
+            spark_conf:
+              spark.sql.session.timeZone: UTC
+            spark_env_vars:
+              DBXBENCH_GIT_SHA: ${var.git_sha}
+      tasks:
+        - task_key: writer
+          job_cluster_key: writer
+          python_wheel_task:
+            package_name: dbxbench
+            entry_point: dbxbench-worker
+            parameters:
+              - --plan
+              - "{{job.parameters.plan_path}}"
+              - --job-run-id
+              - "{{job.run_id}}"
+              - --task-run-id
+              - "{{task.run_id}}"
+          libraries:
+            - whl: ../../dist/*.whl
+            - pypi:
+                package: databricks-sdk>=0.40,<1
+
+    dbxbench_suite:
+      name: dbxbench-suite-${bundle.target}
+      max_concurrent_runs: 1
+      parameters:
+        - name: run_id   # REQUIRED at run time: databricks bundle run dbxbench_suite --params run_id=<id>
+          default: ""
+      job_clusters:
+        - job_cluster_key: driver
+          new_cluster:
+            spark_version: ${var.spark_version}
+            node_type_id: ${var.node_type_id}
+            num_workers: 2
+            data_security_mode: ${var.data_security_mode}
+            spark_conf:
+              spark.sql.session.timeZone: UTC
+            spark_env_vars:
+              DBXBENCH_GIT_SHA: ${var.git_sha}
+      tasks:
+        - task_key: doctor
+          job_cluster_key: driver
+          python_wheel_task:
+            package_name: dbxbench
+            entry_point: dbxbench-task
+            parameters: [doctor, --config, "${workspace.file_path}/config/${var.config_file}",
+                         --run-id, "{{job.parameters.run_id}}", --catalog, "${var.catalog}",
+                         --results-root, "${var.results_root}",
+                         --worker-job-id, "${resources.jobs.dbxbench_worker.id}"]
+          libraries:
+            - whl: ../../dist/*.whl
+            - pypi:
+                package: databricks-sdk>=0.40,<1
+            - pypi:
+                package: matplotlib>=3.8,<4
+        - task_key: init
+          depends_on: [{task_key: doctor}]
+          job_cluster_key: driver
+          python_wheel_task:
+            package_name: dbxbench
+            entry_point: dbxbench-task
+            parameters: [init, --config, "${workspace.file_path}/config/${var.config_file}",
+                         --run-id, "{{job.parameters.run_id}}", --catalog, "${var.catalog}",
+                         --results-root, "${var.results_root}",
+                         --worker-job-id, "${resources.jobs.dbxbench_worker.id}"]
+          libraries:
+            - whl: ../../dist/*.whl
+            - pypi:
+                package: databricks-sdk>=0.40,<1
+            - pypi:
+                package: matplotlib>=3.8,<4
+        - task_key: generate
+          depends_on: [{task_key: init}]
+          job_cluster_key: driver
+          python_wheel_task:
+            package_name: dbxbench
+            entry_point: dbxbench-task
+            parameters: [generate, --config, "${workspace.file_path}/config/${var.config_file}",
+                         --run-id, "{{job.parameters.run_id}}", --catalog, "${var.catalog}",
+                         --results-root, "${var.results_root}",
+                         --worker-job-id, "${resources.jobs.dbxbench_worker.id}"]
+          libraries:
+            - whl: ../../dist/*.whl
+            - pypi:
+                package: databricks-sdk>=0.40,<1
+            - pypi:
+                package: matplotlib>=3.8,<4
+        - task_key: performance
+          depends_on: [{task_key: generate}]
+          job_cluster_key: driver
+          python_wheel_task:
+            package_name: dbxbench
+            entry_point: dbxbench-task
+            parameters: [run, --kind, performance, --config, "${workspace.file_path}/config/${var.config_file}",
+                         --run-id, "{{job.parameters.run_id}}", --catalog, "${var.catalog}",
+                         --results-root, "${var.results_root}",
+                         --worker-job-id, "${resources.jobs.dbxbench_worker.id}"]
+          libraries:
+            - whl: ../../dist/*.whl
+            - pypi:
+                package: databricks-sdk>=0.40,<1
+            - pypi:
+                package: matplotlib>=3.8,<4
+        - task_key: faults
+          depends_on: [{task_key: performance}]
+          job_cluster_key: driver
+          python_wheel_task:
+            package_name: dbxbench
+            entry_point: dbxbench-task
+            parameters: [run, --kind, fault, --config, "${workspace.file_path}/config/${var.config_file}",
+                         --run-id, "{{job.parameters.run_id}}", --catalog, "${var.catalog}",
+                         --results-root, "${var.results_root}",
+                         --worker-job-id, "${resources.jobs.dbxbench_worker.id}"]
+          libraries:
+            - whl: ../../dist/*.whl
+            - pypi:
+                package: databricks-sdk>=0.40,<1
+            - pypi:
+                package: matplotlib>=3.8,<4
+        - task_key: contention
+          depends_on: [{task_key: faults}]
+          job_cluster_key: driver
+          # The coordinator: launches N separate dbxbench_worker runs, runs the barrier, waits, collects.
+          python_wheel_task:
+            package_name: dbxbench
+            entry_point: dbxbench-task
+            parameters: [run, --kind, contention, --config, "${workspace.file_path}/config/${var.config_file}",
+                         --run-id, "{{job.parameters.run_id}}", --catalog, "${var.catalog}",
+                         --results-root, "${var.results_root}",
+                         --worker-job-id, "${resources.jobs.dbxbench_worker.id}"]
+          libraries:
+            - whl: ../../dist/*.whl
+            - pypi:
+                package: databricks-sdk>=0.40,<1
+            - pypi:
+                package: matplotlib>=3.8,<4
+        - task_key: verify
+          depends_on: [{task_key: contention}]
+          job_cluster_key: driver
+          python_wheel_task:
+            package_name: dbxbench
+            entry_point: dbxbench-task
+            parameters: [verify, --config, "${workspace.file_path}/config/${var.config_file}",
+                         --run-id, "{{job.parameters.run_id}}", --catalog, "${var.catalog}",
+                         --results-root, "${var.results_root}",
+                         --worker-job-id, "${resources.jobs.dbxbench_worker.id}"]
+          libraries:
+            - whl: ../../dist/*.whl
+            - pypi:
+                package: databricks-sdk>=0.40,<1
+            - pypi:
+                package: matplotlib>=3.8,<4
+        - task_key: analyze
+          depends_on: [{task_key: verify}]
+          job_cluster_key: driver
+          python_wheel_task:
+            package_name: dbxbench
+            entry_point: dbxbench-task
+            parameters: [analyze, --config, "${workspace.file_path}/config/${var.config_file}",
+                         --run-id, "{{job.parameters.run_id}}", --catalog, "${var.catalog}",
+                         --results-root, "${var.results_root}",
+                         --worker-job-id, "${resources.jobs.dbxbench_worker.id}"]
+          libraries:
+            - whl: ../../dist/*.whl
+            - pypi:
+                package: databricks-sdk>=0.40,<1
+            - pypi:
+                package: matplotlib>=3.8,<4
+
+    dbxbench_live_tests:
+      name: dbxbench-live-tests-${bundle.target}
+      max_concurrent_runs: 1
+      job_clusters:
+        - job_cluster_key: tests
+          new_cluster:
+            spark_version: ${var.spark_version}
+            node_type_id: ${var.node_type_id}
+            num_workers: 1
+            data_security_mode: ${var.data_security_mode}
+            spark_conf:
+              spark.sql.session.timeZone: UTC
+            spark_env_vars:
+              DBXBENCH_DATABRICKS_TESTS: "1"
+              DBXBENCH_CATALOG: ${var.catalog}
+              DBXBENCH_RESULTS_ROOT: ${var.results_root}
+              DBXBENCH_GIT_SHA: ${var.git_sha}
+      tasks:
+        - task_key: pytest_databricks
+          job_cluster_key: tests
+          spark_python_task:
+            python_file: ../../scripts/run_live_tests.py
+            parameters: ["${workspace.file_path}"]
+          libraries:
+            - whl: ../../dist/*.whl
+            - pypi:
+                package: pytest>=8

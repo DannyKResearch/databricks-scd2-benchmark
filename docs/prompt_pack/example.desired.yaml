@@ -1,0 +1,57 @@
+# Desired configuration contract for Claude to implement; not an executable test suite yet.
+project:
+  name: dbx-scd2-transactions
+  seed: 20261114
+  catalog: dbx_research                  # replace with authorized UC catalog
+  schema_prefix: scd2_bench             # ephemeral per-run schema/table prefix
+  s3_staging_uri: null                   # optional, configure only if needed
+  require_ownership_marker: true
+  allow_cleanup: false
+  max_estimated_total_rows: 2000000000
+  max_tables_per_transaction: 100
+compute:
+  required_min_dbr: '18.0'
+  preferred_mode: jobs_cluster
+  transaction_mode: begin_atomic
+  timezone: UTC
+  max_parallel_job_runs: 20
+workload:
+  table_count: 3
+  rows_per_table_per_publication: 1000
+  publication_count: 3
+  dataset_scope_count: 1
+  payload_width_bytes: 128
+  changed_value_fraction: 1.0
+  business_key_skew: 0.0
+  null_fraction: 0.0
+  staging_materialized_before_timing: true
+  publication_interval_millis: 1000
+  publication_timestamp_origin_utc: '2026-01-01T00:00:00Z'
+strategies: [scd2_full, append_only_full]
+formats: [delta, iceberg]
+concurrency:
+  writer_counts: [1, 2, 5]
+  contention_modes: [same_scope, disjoint_scopes, overlapping_tables]
+  start_modes: [barrier, staggered]
+  strict_ordering_modes: [off, sequenced]
+  max_attempts: 5
+  initial_backoff_ms: 250
+  max_backoff_ms: 8000
+  per_attempt_timeout_seconds: 600
+  overall_deadline_seconds: 1800
+  barrier_timeout_seconds: 300
+benchmark:
+  repetitions: 3
+  warmup_publications: 1
+  measure_read_queries: true
+  measure_storage_metrics: true
+  include_maintenance_cost: true
+  fail_on_unexpected_skip: false
+fault_injection:
+  enabled: true
+  scenarios: [after_first_update, after_first_insert, last_table, duplicate_delivery, late_delivery, lost_ack]
+reporting:
+  results_mode: per_run_s3_or_uc
+  charts: true
+  save_executed_sql: true
+  save_execution_plan: true

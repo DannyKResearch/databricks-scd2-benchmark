@@ -1,0 +1,79 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "dbxbench"
+version = "0.1.0"
+description = "Rerunnable PySpark benchmark: full-snapshot SCD2 vs append-only, atomic multi-table transactions under independent concurrent writers, managed Delta vs managed Iceberg."
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [{ name = "Danny Kay" }]
+# pyspark is intentionally NOT a core dependency: Databricks Runtime provides it and
+# installing a second copy on a cluster breaks the runtime. Use the `local` extra locally.
+dependencies = [
+  "pydantic>=2.5,<3",
+  "pyyaml>=6.0,<7",
+]
+
+[project.optional-dependencies]
+jobs = ["databricks-sdk>=0.40,<1"]
+report = ["matplotlib>=3.8,<4"]
+local = ["pyspark==4.2.0", "delta-spark==4.4.1"]
+dev = ["pytest>=8", "ruff>=0.6", "mypy>=1.10", "types-PyYAML"]
+
+[project.scripts]
+dbxbench = "dbxbench.cli:main"
+dbxbench-worker = "dbxbench.worker:main"
+dbxbench-task = "dbxbench.cli:task_main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+dbxbench = ["py.typed"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+  "spark: requires a local PySpark + Delta session (tests/integration)",
+  "databricks: requires a supported Databricks runtime (DBR 18.0+/serverless) and an authorized UC catalog",
+  "slow: multi-process local harness tests",
+]
+addopts = "-ra --strict-markers"
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "S", "RUF", "SIM", "PL"]
+ignore = [
+  "S101",   # asserts are fine in tests
+  "S608",   # SQL is built from validated identifiers + escaped literals (see dbxbench.sqlutil)
+  "S311",   # random is used for seeded jitter/test data, not crypto
+  "S603", "S607",  # subprocess launching of our own worker module
+  "PLR0913", "PLR0912", "PLR0915", "PLR2004", "PLR0911",
+  "RUF012",
+  "PLC0415",  # lazy imports keep pyspark/databricks-sdk/matplotlib optional
+  "PLR0917",
+  "RUF001", "RUF002", "RUF003",
+  "SIM105", "SIM108", "PLW2901",
+  "S105",   # enum values like "PASS" are not passwords
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S", "PLR", "B017"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unused_ignores = true
+mypy_path = "src"
+packages = ["dbxbench"]
+plugins = ["pydantic.mypy"]
+
+[[tool.mypy.overrides]]
+module = ["pyspark.*", "delta.*", "databricks.*", "matplotlib.*", "py4j.*"]
+ignore_missing_imports = true

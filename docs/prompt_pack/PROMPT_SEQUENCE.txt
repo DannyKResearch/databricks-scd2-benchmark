@@ -1,0 +1,9 @@
+1. Paste 00_MASTER_PROMPT.md to Claude with all pack files attached.
+2. "Implement PHASE 01 from 01_REPO_AND_CONFIGURATION.md; show the files and run unit tests."
+3. "Implement PHASE 02 from 02_DATA_AND_STRATEGIES.md. Provide a tiny deterministic test."
+4. "Implement PHASE 03 from 03_ATOMIC_TRANSACTION_IMPLEMENTATION.md. Demonstrate single-call BEGIN ATOMIC and rollback."
+5. "Implement PHASE 04 from 04_CONCURRENCY_HARNESS.md. Prove independent job-run concurrency."
+6. "Implement PHASE 05 from 05_FORMAT_AND_PERFORMANCE.md. Compare matched Delta/Iceberg cases."
+7. "Implement PHASE 06 from 06_VALIDATION_AND_FAILURES.md. Inject failures and automate invariants."
+8. "Implement PHASE 07 from 07_DEPLOYMENT_AND_REPORTING.md. Add Databricks Jobs deployment/reporting."
+9. "Review the complete project with 08_REVIEW_AND_ACCEPTANCE.md; remediate P0/P1 issues and provide verified run log."

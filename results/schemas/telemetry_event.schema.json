@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "dbxbench writer telemetry event (cells/*/telemetry/*.jsonl)",
+  "type": "object",
+  "properties": {
+    "event": {
+      "enum": [
+        "arrival",
+        "session_ready",
+        "ready",
+        "go_received",
+        "start",
+        "publication_start",
+        "prevalidation_done",
+        "prevalidation_failed",
+        "attempt_start",
+        "attempt_end",
+        "backoff",
+        "reconcile",
+        "publication_end",
+        "late_attempt_finished",
+        "barrier_failed_closed",
+        "worker_error",
+        "simulated_writer_termination",
+        "done"
+      ]
+    },
+    "ts_utc": {
+      "type": "string"
+    },
+    "mono_ns": {
+      "type": "integer"
+    },
+    "run_id": {
+      "type": "string"
+    },
+    "cell_key": {
+      "type": "string"
+    },
+    "writer_id": {
+      "type": "string"
+    },
+    "job_run_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  },
+  "required": [
+    "event",
+    "ts_utc",
+    "writer_id"
+  ]
+}

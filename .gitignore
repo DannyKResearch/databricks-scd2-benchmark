@@ -218,3 +218,12 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# dbxbench run outputs (evidence lives in the results root, not in git)
+results/runs/
+results/local_warehouse/
+spark-warehouse/
+metastore_db/
+derby.log
+.venv/
+.idea/

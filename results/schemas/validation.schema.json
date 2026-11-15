@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "dbxbench validation report (cells/*/validation.json)",
+  "type": "object",
+  "properties": {
+    "cell_key": {
+      "type": "string"
+    },
+    "verdict": {
+      "enum": [
+        "PASS",
+        "FAIL",
+        "PASS_WITH_FLAGGED_ORDERING_ANOMALIES",
+        "NOT_RUN"
+      ]
+    },
+    "atomicity_evidence": {
+      "type": "boolean"
+    },
+    "transaction_mode": {
+      "type": "string"
+    },
+    "checks": {
+      "type": "array",
+      "items": {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "title": "check",
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "klass": {
+            "type": "string"
+          },
+          "table": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "enum": [
+              "PASS",
+              "FAIL",
+              "FLAGGED",
+              "SKIPPED",
+              "ERROR"
+            ]
+          },
+          "violations": {
+            "type": "integer"
+          },
+          "sql": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "klass",
+          "status",
+          "violations",
+          "sql"
+        ]
+      }
+    }
+  },
+  "required": [
+    "cell_key",
+    "verdict",
+    "checks",
+    "atomicity_evidence"
+  ]
+}

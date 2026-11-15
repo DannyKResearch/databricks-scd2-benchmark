@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "dbxbench attempt record (cells/*/attempts.jsonl)",
+  "type": "object",
+  "properties": {
+    "run_id": {
+      "type": "string"
+    },
+    "cell_key": {
+      "type": "string"
+    },
+    "writer_id": {
+      "type": "string"
+    },
+    "publication_id": {
+      "type": "string"
+    },
+    "dataset_scope": {
+      "type": "string"
+    },
+    "sequence": {
+      "type": "integer"
+    },
+    "attempt_number": {
+      "type": "integer"
+    },
+    "attempt_token": {
+      "type": "string"
+    },
+    "attempt_start": {
+      "type": "string"
+    },
+    "attempt_end": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "duration_s": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "outcome": {
+      "enum": [
+        "PENDING",
+        "COMMIT_ACK",
+        "ERROR"
+      ]
+    },
+    "category": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "error_condition": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "sqlstate": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "message": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "backoff_s": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "reconciled": {
+      "type": "boolean"
+    },
+    "simulated_fault": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "phase": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "run_id",
+    "cell_key",
+    "writer_id",
+    "publication_id",
+    "attempt_number",
+    "attempt_token",
+    "outcome"
+  ]
+}

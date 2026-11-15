@@ -1,0 +1,97 @@
+# dbxbench configuration (validated by dbxbench.config.BenchConfig; unknown keys are errors).
+# Baseline for a Databricks workspace. Copy it, set project.catalog and project.results_root, run
+# `dbxbench doctor`, then `dbxbench run --dry-run` before anything is written.
+# No credentials belong here: authentication uses the standard Databricks SDK chain
+# (DATABRICKS_HOST/DATABRICKS_TOKEN env vars, ~/.databrickscfg profile, OAuth, or job identity).
+project:
+  name: dbx-scd2-transactions
+  seed: 20261114
+  catalog: dbx_research                  # REPLACE with an authorized UC catalog
+  schema_prefix: scd2_bench              # per-run schema = <schema_prefix>_<run_id>
+  namespace_mode: per_run_schema         # or fixed_schema (+ fixed_schema: <name>) => tables prefixed <run_id>__
+  schema_layout: single                  # single | per_cell (one schema per cell; for per-schema table quotas)
+  results_root: /Volumes/dbx_research/scd2_bench_results/runs   # UC Volume (or local path) for results/telemetry/barrier
+  s3_staging_uri: null                   # optional; not required (staging uses managed tables)
+  require_ownership_marker: true
+  allow_cleanup: false                   # cleanup additionally needs --yes and the ownership marker
+  max_estimated_total_rows: 2000000000
+  max_estimated_storage_gb: 500
+  max_tables_per_transaction: 100        # documented cap (targets + staging + ledger + fence accessed)
+compute:
+  required_min_dbr: '18.0'               # BEGIN ATOMIC on classic compute requires DBR 18.0+
+  preferred_mode: jobs_cluster           # jobs_cluster | serverless | existing_cluster | local
+  transaction_mode: begin_atomic         # begin_atomic | local_nonatomic_emulation (local only, never evidence)
+  timezone: UTC
+  max_parallel_job_runs: 20
+workload:
+  table_count: 3
+  rows_per_table_per_publication: 1000   # rows per table, per dataset scope, per publication (full snapshot)
+  publication_count: 3
+  dataset_scope_count: 1
+  payload_width_bytes: 128
+  changed_value_fraction: 1.0
+  category_skew: 0.0                     # 0 = uniform attr_category; ->1 concentrates into few categories
+  category_cardinality: 50
+  scope_size_skew: 0.0                   # Zipf exponent for per-scope snapshot sizes (0 = equal sizes)
+  null_fraction: 0.0
+  staging_materialized_before_timing: true
+  publication_interval_millis: 1000
+  publication_timestamp_origin_utc: '2026-01-01T00:00:00Z'
+  in_transaction_staging_count_check: true
+sweeps:
+  mode: baseline_only                    # baseline_only | one_at_a_time | cartesian
+  rows_per_table_per_publication: [100000, 1000000, 10000000]
+  table_count: [2, 5, 10, 20]
+  publication_count: [5, 20, 50]
+  changed_value_fraction: [0.0, 0.01, 0.1, 1.0]
+  payload_width_bytes: []
+  dataset_scope_count: []
+strategies: [scd2_full, append_only_full]   # add scd2_changed_only explicitly to run optional strategy C
+formats: [delta, iceberg]
+concurrency:
+  enabled: true
+  launcher: databricks_jobs              # databricks_jobs (primary) | local_process (harness test) | inline (N=1)
+  strategies: [scd2_full]
+  formats: [delta]
+  writer_counts: [1, 2, 5]
+  contention_modes: [same_scope, disjoint_scopes, overlapping_tables]
+  start_modes: [barrier, staggered]
+  strict_ordering_modes: ['off', sequenced]
+  publications_per_writer: 1
+  overlapping_table_window: 2
+  repetitions: 1
+  max_attempts: 5
+  initial_backoff_ms: 250
+  max_backoff_ms: 8000
+  per_attempt_timeout_seconds: 600
+  overall_deadline_seconds: 1800
+  barrier_timeout_seconds: 900           # job clusters can take minutes to start
+  barrier_go_lead_seconds: 5
+  barrier_poll_seconds: 0.5
+  stagger_millis: 500
+  random_start_max_millis: 5000
+  worker_job_id: null                    # set from `databricks bundle deploy` output (dbxbench_worker job)
+  job_run_poll_seconds: 10
+benchmark:
+  repetitions: 3
+  warmup_publications: 1
+  randomize_order: true
+  measure_read_queries: true
+  read_query_repetitions: 3
+  measure_storage_metrics: true
+  include_maintenance_cost: true
+  clear_cache_before_cold_queries: true
+  fail_on_unexpected_skip: false
+  ordering_mode: sequenced
+fault_injection:
+  enabled: true
+  formats: [delta]
+  scenarios: [after_first_update, after_first_insert, last_table, after_ledger, duplicate_delivery,
+              late_delivery, lost_ack, client_timeout, schema_mismatch, duplicate_keys_input,
+              constraint_violation_real]
+  client_timeout_seconds: 0.05
+reporting:
+  charts: true
+  save_executed_sql: true
+  save_execution_plan: true
+  results_retention_days: 30

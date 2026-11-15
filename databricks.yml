@@ -1,0 +1,64 @@
+# Databricks Asset Bundle for dbxbench.
+# STATUS: authored against the documented bundle schema; `databricks bundle validate` has NOT been run
+# from this repository's CI (no workspace credentials). Validate in your workspace before use:
+#
+#   databricks bundle validate -t dev --var catalog=<catalog> --var results_root=/Volumes/<c>/<s>/<v>/runs
+#   databricks bundle deploy   -t dev --var git_sha=$(git rev-parse HEAD) ...
+#
+# No workspace URL, cluster ID, or credential is stored here: the CLI resolves the workspace from
+# your profile / DATABRICKS_HOST and authenticates with the standard Databricks auth chain.
+bundle:
+  name: dbxbench
+
+include:
+  # Serverless jobs (default). For classic job clusters use resources/classic/*.yml instead (never both).
+  - resources/*.yml
+
+variables:
+  catalog:
+    description: Unity Catalog catalog the benchmark may create run-owned schemas in
+  results_root:
+    description: UC Volume path for results, telemetry and barrier files (e.g. /Volumes/<catalog>/<schema>/<volume>/runs)
+  config_file:
+    description: config file inside the bundle's config/ directory
+    default: example.yaml
+  serverless_environment_version:
+    description: serverless job environment version (5 = Python 3.12 / Databricks Connect 18). See the serverless environment version release notes.
+    default: "5"
+  spark_version:
+    description: (classic variant only) DBR 18.0+ runtime key (BEGIN ATOMIC on classic compute requires 18.0+). List keys with `databricks clusters spark-versions`.
+    default: 18.0.x-scala2.13
+  node_type_id:
+    description: (classic variant only) cloud node type for job clusters (AWS example default)
+    default: i3.xlarge
+  data_security_mode:
+    description: UC access mode for job clusters. Docs note row-level concurrency for MERGE is unavailable on dedicated (single-user) clusters.
+    default: USER_ISOLATION
+  worker_num_workers:
+    description: workers per independent writer job cluster
+    default: 1
+  git_sha:
+    description: commit recorded in run_manifest.json; pass --var git_sha=$(git rev-parse HEAD)
+    default: unknown
+
+artifacts:
+  dbxbench_wheel:
+    type: whl
+    # needs uv on PATH (https://docs.astral.sh/uv/). Without uv, use a Python >= 3.11 with pip:
+    #   build: python -m pip wheel --no-deps -w dist .
+    build: uv build --wheel -o dist .
+    path: .
+
+targets:
+  dev:
+    mode: development
+    default: true
+  # Databricks Free Edition: serverless only, max 5 concurrent job tasks, default catalog `workspace`.
+  free:
+    mode: development
+    variables:
+      catalog: workspace
+      results_root: /Volumes/workspace/dbxbench/results/runs
+      config_file: free_edition.yaml
+  # Optional: point a target at a workspace with `workspace.host` in your own (untracked) override,
+  # or rely on the profile/env var. Nothing workspace-specific is committed.

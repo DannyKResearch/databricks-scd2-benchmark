@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "dbxbench publication outcome (cells/*/publications.jsonl)",
+  "type": "object",
+  "properties": {
+    "cell_key": {
+      "type": "string"
+    },
+    "writer_id": {
+      "type": "string"
+    },
+    "phase": {
+      "enum": [
+        "setup",
+        "measured"
+      ]
+    },
+    "status": {
+      "enum": [
+        "COMMITTED",
+        "COMMITTED_RECONCILED",
+        "ALREADY_COMMITTED",
+        "REJECTED_STALE",
+        "ROLLED_BACK_INJECTED",
+        "PREVALIDATION_FAILED",
+        "FAILED_NONRETRYABLE",
+        "FAILED_RETRIES_EXHAUSTED",
+        "DEADLINE_EXCEEDED",
+        "INTEGRITY_ANOMALY",
+        "OUTCOME_UNKNOWN"
+      ]
+    },
+    "attempt_count": {
+      "type": "integer"
+    },
+    "end_to_end_s": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "prevalidation_s": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "commit_ack_time": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "first_attempt_start": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "committed_token": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "warmup": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "cell_key",
+    "status"
+  ]
+}
