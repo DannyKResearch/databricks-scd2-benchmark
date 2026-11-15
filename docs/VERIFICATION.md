@@ -2,6 +2,20 @@
 
 Environment: WSL2 Ubuntu 20.04, Python 3.12.16 (uv), OpenJDK 21, PySpark 4.2.0, delta-spark 4.4.1, pydantic 2.14.1, pytest 9.1.1. Everything not executed is listed as `NOT_RUN` below; none of it is claimed to work.
 
+## Databricks Free Edition: full live-test pass (2026-11-15, serverless, `workspace` catalog)
+
+Run `r20261115t160720_7168bf` at commit `b606901`: `dbxbench_live_tests` **5 passed** in 50 min 57 s.
+
+| cells | result |
+|---|---|
+| performance: scd2_full and append_only_full × Delta and Iceberg | **PASS** (all invariants, real `BEGIN ATOMIC`) |
+| fault matrix, Delta: 11 scenarios incl. `client_timeout`, `lost_ack`, `after_ledger`, `constraint_violation_real` | **PASS** (failed blocks left no trace; idempotency faults applied exactly once) |
+| fault matrix, Iceberg: 10 scenarios | **PASS** |
+| `constraint_violation_real` on Iceberg | SKIPPED: CHECK constraints are not available on managed Iceberg |
+| doctor rollback probe | no leaked insert or update |
+
+The task was marked FAILED only because the runner called `sys.exit(0)` (fixed in `8a42afa`). The resulting automatic retry was cancelled. Contention cells (independent concurrent job runs) and the full suite are still NOT_RUN.
+
 ## Databricks Free Edition: first live run (2026-11-15, serverless, `workspace` catalog; PARTIAL)
 
 `dbxbench_live_tests`, live-test run `r20261115t144616_38d7e6`. The run was cancelled after the session broke (see the P0 below). Details are in [HOW_TO_RUN_ON_DATABRICKS_FREE.md](../HOW_TO_RUN_ON_DATABRICKS_FREE.md).
@@ -75,11 +89,12 @@ All timings from this run are from a laptop over local Delta and must not be rea
 | P1 | `UC_RESOURCE_QUOTA_EXCEEDED` (100 tables per schema on Free Edition) | `project.schema_layout: per_cell`; cleanup covers `<run schema>__<cell>` schemas and requires an exact run-id match | live Free Edition run |
 | P1 | live-test job crashed loading conftest: `/Workspace` files reject `__pycache__` (Errno 95) | run pytest from a local temp copy, with bytecode writes off | live Free Edition run |
 | P2 | no way to clean up from a serverless-only workspace | `dbxbench_cleanup` bundle job | live Free Edition run |
+| P1 | serverless marks a task FAILED on any `SystemExit` (even 0); auto-optimization then retried the whole live-test fixture | runner only exits on failure; every bundle task has `max_retries: 0` and `disable_auto_optimization: true` | live Free Edition run |
 | open | everything in "NOT_RUN" below | needs a workspace | |
 
 ## NOT_RUN (requires a supported Databricks environment)
 
-1. ~~`BEGIN ATOMIC` single-call commit and rollback~~: **partially RUN** on Free Edition serverless (probes and 12 cells PASS; see above). Still to do: the full fault matrix after the P0 fix.
+1. ~~`BEGIN ATOMIC` single-call commit and rollback, full fault matrix~~: **RUN and PASS** on Free Edition serverless (see above).
 2. Fence-row conflict safety and strict ordering under **independent job runs** (`dbxbench_suite` contention task + `dbxbench_worker`), including commit-version ordering and the reader-skew measurement.
 3. Managed Iceberg: the probes ran on Free Edition serverless and **all passed** (creation, UPDATE, in-transaction writes and rollback, mixed-format transactions). Fault cells on Iceberg are only partially run.
 4. Conflict error conditions actually raised on DBR 18 (classifier coverage).
@@ -91,7 +106,7 @@ All timings from this run are from a laptop over local Delta and must not be rea
 
 Per `08_REVIEW_AND_ACCEPTANCE.md`: **NOT DONE**.
 
-* A partial live run on Free Edition serverless passed the capability probes and 12 cells.
-* The full fault matrix, the contention cells (independent concurrent job runs) and the suite have not completed on Databricks.
+* The live acceptance tests passed on Free Edition serverless: probes, performance cells and the full fault matrix on Delta and Iceberg.
+* The contention cells (independent concurrent job runs) and the full suite have not run on Databricks yet.
 
 Next step: redeploy, then `bundle run dbxbench_live_tests`, then `bundle run dbxbench_suite` (see HOW_TO_RUN_ON_DATABRICKS_FREE.md), then review `report.md`.

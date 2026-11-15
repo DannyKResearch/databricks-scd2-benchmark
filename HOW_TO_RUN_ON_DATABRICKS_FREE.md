@@ -80,7 +80,7 @@ Deploy creates four jobs, each prefixed `[dev <you>]`:
 databricks bundle run dbxbench_live_tests -t free -p dbc-xxxxxxxx-xxxx
 ```
 
-* This takes roughly 30–40 minutes on Free Edition. Each SQL statement is a serverless round trip, and the fixture runs doctor, init, generate, 4 performance cells and 22 fault cells.
+* This takes about 50 minutes on Free Edition. Each SQL statement is a serverless round trip, and the fixture runs doctor, init, generate, 4 performance cells and 22 fault cells.
 * `--params` is **not** a `bundle deploy` flag. Job parameters go on `bundle run`.
 
 ### Watching progress while it runs
@@ -149,7 +149,18 @@ databricks schemas list workspace -p dbc-xxxxxxxx-xxxx
 | Live-test job failed in seconds with `SystemExit: 4` | `ImportError while loading conftest … OSError: [Errno 95] Operation not supported: '/Workspace/…/tests/__pycache__'`: workspace files reject pytest's cache and bytecode writes | `scripts/run_live_tests.py` copies `tests/`, `config/` and `pyproject.toml` to a local temp directory and disables bytecode writes |
 | 3 fault cells: `QUOTA_EXCEEDED.UC_RESOURCE_QUOTA_EXCEEDED … (estimated count: 128, limit: 100)` | one schema held every table of the run | `project.schema_layout: per_cell` (Free Edition config and live tests) |
 | After the `client_timeout` fault, every later cell failed with `TRANSACTION_CONTEXT_MISMATCH.ACTIVE_IN_SPARK_SESSION_BUT_NOT_IN_THREAD` | The engine stopped waiting for a transaction that was still open on a worker thread, then sent ledger reconciliation from another thread. Databricks binds an open transaction to its thread, and the session stayed broken. | `SparkSqlExecutor` runs every statement of a session on one dedicated thread, in order, so a timed-out transaction is always finished before the next statement. Client timeouts no longer interrupt the server statement. A broken or stalled session fails fast as `SESSION_UNUSABLE` instead of producing misleading per-cell errors. Unit test: `tests/unit/test_session_thread.py`. |
+| Live tests passed 5/5 but the task showed `FAILED` with `SystemExit: 0`, then restarted by itself | serverless treats any `SystemExit` as failure, and auto-optimization retries failed tasks by default | the runner only exits on failure; every task sets `max_retries: 0` and `disable_auto_optimization: true` |
 | Bundle could not run on serverless (job clusters, `spark_env_vars`) | Free Edition is serverless-only | serverless `resources/jobs.yml` (environment version 5); `--git-sha` flag and `KEY=VALUE` live-test arguments instead of environment variables |
+
+## Result after the fixes
+
+Run `r20261115t160720_7168bf` (2026-11-15): **5/5 live tests passed** in about 51 minutes.
+
+* All 4 performance cells passed on real `BEGIN ATOMIC`.
+* 21 fault cells passed across Delta and Iceberg, including `client_timeout`.
+* Iceberg `constraint_violation_real` was SKIPPED (no CHECK constraints on Iceberg).
+
+Next on Free Edition: `dbxbench_suite` (contention cells with up to 4 independent writer job runs).
 
 ## What the first (partial) live run established
 
