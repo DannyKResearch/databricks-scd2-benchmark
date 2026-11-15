@@ -14,6 +14,8 @@ H = """# SERVERLESS jobs (default; works on Databricks Free Edition and on paid 
 # live-test settings as KEY=VALUE arguments; the session time zone is set by dbxbench itself.
 # Free Edition allows at most 5 concurrent job tasks per account: the suite's own task counts as one, so
 # use at most 4 writers (config/free_edition.yaml).
+# Every task has retries OFF (max_retries 0 + disable_auto_optimization): serverless auto-optimization retries
+# failed tasks by default, which would re-run a writer (distorting concurrency results) or a whole test fixture.
 """
 
 
@@ -45,6 +47,8 @@ out.append(
       tasks:
         - task_key: writer
           environment_key: default
+          max_retries: 0
+          disable_auto_optimization: true  # no automatic serverless retries
           python_wheel_task:
             package_name: dbxbench
             entry_point: dbxbench-worker
@@ -82,7 +86,9 @@ for key, dep, cmd in steps:
     if dep:
         out.append(f"          depends_on: [{{task_key: {dep}}}]\n")
     out.append(
-        "          environment_key: default\n          python_wheel_task:\n"
+        "          environment_key: default\n          max_retries: 0\n"
+        "          disable_auto_optimization: true  # no automatic serverless retries\n"
+        "          python_wheel_task:\n"
         "            package_name: dbxbench\n            entry_point: dbxbench-task\n"
         f"            parameters: [{cmd}, {common}]\n"
     )
@@ -94,6 +100,8 @@ out.append(
       tasks:
         - task_key: pytest_databricks
           environment_key: default
+          max_retries: 0
+          disable_auto_optimization: true  # no automatic serverless retries
           spark_python_task:
             python_file: ../scripts/run_live_tests.py
             parameters:
@@ -120,6 +128,8 @@ out.append(
       tasks:
         - task_key: cleanup
           environment_key: default
+          max_retries: 0
+          disable_auto_optimization: true  # no automatic serverless retries
           python_wheel_task:
             package_name: dbxbench
             entry_point: dbxbench-task

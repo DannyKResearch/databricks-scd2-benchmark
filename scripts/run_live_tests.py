@@ -35,4 +35,8 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    # Serverless spark_python_task treats ANY SystemExit, including exit(0), as a failed workload (observed
+    # 2026-11-15: 5 passed, task FAILED with "SystemExit: 0"). Only exit on failure.
+    rc = main()
+    if rc != 0:
+        raise SystemExit(rc)

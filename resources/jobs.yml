@@ -10,6 +10,8 @@
 # live-test settings as KEY=VALUE arguments; the session time zone is set by dbxbench itself.
 # Free Edition allows at most 5 concurrent job tasks per account: the suite's own task counts as one, so
 # use at most 4 writers (config/free_edition.yaml).
+# Every task has retries OFF (max_retries 0 + disable_auto_optimization): serverless auto-optimization retries
+# failed tasks by default, which would re-run a writer (distorting concurrency results) or a whole test fixture.
 resources:
   jobs:
     dbxbench_worker:
@@ -23,6 +25,8 @@ resources:
       tasks:
         - task_key: writer
           environment_key: default
+          max_retries: 0
+          disable_auto_optimization: true  # no automatic serverless retries
           python_wheel_task:
             package_name: dbxbench
             entry_point: dbxbench-worker
@@ -50,6 +54,8 @@ resources:
       tasks:
         - task_key: doctor
           environment_key: default
+          max_retries: 0
+          disable_auto_optimization: true  # no automatic serverless retries
           python_wheel_task:
             package_name: dbxbench
             entry_point: dbxbench-task
@@ -57,6 +63,8 @@ resources:
         - task_key: init
           depends_on: [{task_key: doctor}]
           environment_key: default
+          max_retries: 0
+          disable_auto_optimization: true  # no automatic serverless retries
           python_wheel_task:
             package_name: dbxbench
             entry_point: dbxbench-task
@@ -64,6 +72,8 @@ resources:
         - task_key: generate
           depends_on: [{task_key: init}]
           environment_key: default
+          max_retries: 0
+          disable_auto_optimization: true  # no automatic serverless retries
           python_wheel_task:
             package_name: dbxbench
             entry_point: dbxbench-task
@@ -71,6 +81,8 @@ resources:
         - task_key: performance
           depends_on: [{task_key: generate}]
           environment_key: default
+          max_retries: 0
+          disable_auto_optimization: true  # no automatic serverless retries
           python_wheel_task:
             package_name: dbxbench
             entry_point: dbxbench-task
@@ -78,6 +90,8 @@ resources:
         - task_key: faults
           depends_on: [{task_key: performance}]
           environment_key: default
+          max_retries: 0
+          disable_auto_optimization: true  # no automatic serverless retries
           python_wheel_task:
             package_name: dbxbench
             entry_point: dbxbench-task
@@ -85,6 +99,8 @@ resources:
         - task_key: contention
           depends_on: [{task_key: faults}]
           environment_key: default
+          max_retries: 0
+          disable_auto_optimization: true  # no automatic serverless retries
           python_wheel_task:
             package_name: dbxbench
             entry_point: dbxbench-task
@@ -92,6 +108,8 @@ resources:
         - task_key: verify
           depends_on: [{task_key: contention}]
           environment_key: default
+          max_retries: 0
+          disable_auto_optimization: true  # no automatic serverless retries
           python_wheel_task:
             package_name: dbxbench
             entry_point: dbxbench-task
@@ -99,6 +117,8 @@ resources:
         - task_key: analyze
           depends_on: [{task_key: verify}]
           environment_key: default
+          max_retries: 0
+          disable_auto_optimization: true  # no automatic serverless retries
           python_wheel_task:
             package_name: dbxbench
             entry_point: dbxbench-task
@@ -118,6 +138,8 @@ resources:
       tasks:
         - task_key: pytest_databricks
           environment_key: default
+          max_retries: 0
+          disable_auto_optimization: true  # no automatic serverless retries
           spark_python_task:
             python_file: ../scripts/run_live_tests.py
             parameters:
@@ -147,6 +169,8 @@ resources:
       tasks:
         - task_key: cleanup
           environment_key: default
+          max_retries: 0
+          disable_auto_optimization: true  # no automatic serverless retries
           python_wheel_task:
             package_name: dbxbench
             entry_point: dbxbench-task
